@@ -40,6 +40,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItems;
 
 public abstract class AbstractSseTest extends AbstractSseBaseTest {
@@ -198,6 +199,50 @@ public abstract class AbstractSseTest extends AbstractSseBaseTest {
                 new Book("New Book #5", 5)
             )
         );
+    }
+
+    @Test
+    public void testClientClosesEventSource() throws InterruptedException {
+        final WebTarget target = createWebTarget("/rest/api/bookstore/client-closes-connection/sse/0");
+        final Collection<Book> books = new ArrayList<>();
+
+        try (SseEventSource eventSource = SseEventSource.target(target).build()) {
+            eventSource.register(collect(books), System.out::println);
+            eventSource.open();
+            
+            // wait for single event, close before server sends other 3
+            awaitEvents(200, books, 1);
+        }
+        
+        // Easing the test verification here, it does not work well for Atm + Jetty
+        assertThat(books,
+            hasItems(
+                new Book("New Book #1", 1)
+            )
+        );
+        
+        Thread.sleep(3000); // give server time to detect client close
+        
+        // Only two out of 4 messages should be delivered, others should be discarded
+        final BookBroadcasterStats stats = 
+            createWebClient("/rest/api/bookstore/client-closes-connection/stats", MediaType.APPLICATION_JSON)
+                .get()
+                .readEntity(BookBroadcasterStats.class);
+        
+        assertThat(stats.getCompleted(), equalTo(2));
+        assertThat(stats.isClosed(), equalTo(true));
+        assertThat(stats.isErrored(), equalTo(supportsErrorPropagation()));
+        assertThat(stats.isWasClosed(), equalTo(true));
+    }
+    
+    /**
+     * Jetty / Undertow do not propagate errors from the runnable passed to 
+     * AsyncContext::start() up to the AsyncEventListener::onError(). Tomcat however 
+     * does it.
+     * @return
+     */
+    protected boolean supportsErrorPropagation() {
+        return false;
     }
 
     private static Consumer<InboundSseEvent> collect(final Collection< Book > books) {

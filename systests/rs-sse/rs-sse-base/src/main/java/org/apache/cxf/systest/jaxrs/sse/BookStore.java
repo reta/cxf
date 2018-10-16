@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 public class BookStore {
     private static final Logger LOG = LoggerFactory.getLogger(BookStore.class);
 
+    private final BookBroadcasterStats stats = new BookBroadcasterStats(); 
     private final CountDownLatch latch = new CountDownLatch(2);
     private Sse sse;
     private SseBroadcaster broadcaster;
@@ -149,6 +150,73 @@ public class BookStore {
         } catch (final InterruptedException ex) {
             LOG.error("Wait has been interrupted", ex);
         }
+    }
+
+    @GET
+    @Path("client-closes-connection/sse/{id}")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public void clientCloseConnection(@Context SseEventSink sink, @PathParam("id") final String idIgnore,
+        @HeaderParam(HttpHeaders.LAST_EVENT_ID_HEADER) @DefaultValue("0") final String lastEventId) {
+
+        stats.reset();
+        new Thread(() -> {
+            try {
+                final Integer id = Integer.valueOf(lastEventId);
+                final Builder builder = sse.newEventBuilder();
+
+                SseBroadcaster localBroadcaster = sse.newBroadcaster();
+                localBroadcaster.onError((sseEventSink, throwable) -> stats.errored());
+                localBroadcaster.onClose(sseEventSink -> stats.closed());
+                localBroadcaster.register(sink);
+
+                localBroadcaster.broadcast(createStatsEvent(builder.name("book"), id + 1))
+                    .whenComplete((r, ex) -> stats.inc());
+                
+                Thread.sleep(1000);
+                localBroadcaster.broadcast(createStatsEvent(builder.name("book"), id + 2))
+                    .whenComplete((r, ex) -> { 
+                        // we expect exception here
+                        if (ex == null) {
+                            stats.inc();
+                        }   
+                    });
+
+                // This event should complete exceptionally since SseEventSource should be 
+                // closed already.
+                Thread.sleep(1000);
+                localBroadcaster.broadcast(createStatsEvent(builder.name("book"), id + 3))
+                    .whenComplete((r, ex) -> { 
+                        // we expect exception here
+                        if (ex == null && !sink.isClosed()) {
+                            stats.inc();
+                        }   
+                    });
+                
+                // This event should complete immediately since the sink has been removed
+                // from the broadcaster (closed).
+                Thread.sleep(500);
+                localBroadcaster.broadcast(createStatsEvent(builder.name("book"), id + 4))
+                    .whenComplete((r, ex) -> {
+                        // we expect the sink to be closed at this point
+                        if (ex != null || !sink.isClosed()) {
+                            stats.inc();
+                        }   
+                    });
+
+                stats.setWasClosed(sink.isClosed());
+                sink.close();
+            } catch (final InterruptedException ex) {
+                LOG.error("Communication error", ex);
+            }
+        }
+        ).start();
+    }
+    
+    @GET
+    @Path("client-closes-connection/stats")
+    @Produces(MediaType.APPLICATION_JSON)
+    public BookBroadcasterStats stats() {
+        return stats;
     }
 
     private static OutboundSseEvent createStatsEvent(final OutboundSseEvent.Builder builder, final int eventId) {
