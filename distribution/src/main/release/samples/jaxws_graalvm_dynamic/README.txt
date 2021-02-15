@@ -43,7 +43,7 @@ Than build the client:
 This goal will produce 'client/target/jaxws-demo-client' executable (platform-dependent) 
 which could be run right away: 
 
-  On Windows: client\target\jaxws-demo-client.exe client\	src\main\resources\addNumbers.wsdl
+  On Windows: client\target\jaxws-demo-client.exe client\src\main\resources\addNumbers.wsdl
   On Linux: ./client/target/jaxws-demo-client client/src/main/resources/addNumbers.wsdl
 
 The command should produce the following output (assuming the server is up and running):
