@@ -27,20 +27,8 @@
         <servlet-class>org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
         <init-param>
-            <param-name>jaxrs.serviceClasses</param-name>
-            <param-value>demo.jaxrs.openapi.server.Sample</param-value>
-        </init-param>
-        <init-param>
-            <param-name>jaxrs.features</param-name>
-            <param-value>org.apache.cxf.jaxrs.openapi.OpenApiFeature</param-value>
-        </init-param>
-        <init-param>
-            <param-name>jaxrs.providers</param-name>
-            <param-value>
-                org.apache.cxf.jaxrs.provider.MultipartProvider,
-                com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider,
-                demo.jaxrs.openapi.server.ApiOriginFilter
-            </param-value>
+            <param-name>javax.ws.rs.Application</param-name>
+            <param-value>demo.jaxrs.openapi.server.SampleApp</param-value>
         </init-param>
     </servlet>
     <servlet-mapping>
