@@ -21,7 +21,9 @@ package org.apache.cxf.message;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.cxf.helpers.CastUtils;
 import org.apache.cxf.service.model.MessagePartInfo;
@@ -29,6 +31,7 @@ import org.apache.cxf.service.model.MessagePartInfo;
 public class MessageContentsList extends ArrayList<Object> {
     public static final Object REMOVED_MARKER = new Object();
     private static final long serialVersionUID = -5780720048950696258L;
+    private final Set<Integer> removed = new HashSet<>();
 
     public MessageContentsList() {
         super(6);
@@ -55,32 +58,37 @@ public class MessageContentsList extends ArrayList<Object> {
 
     public Object set(int idx, Object value) {
         ensureSize(idx);
+
+        if (value != REMOVED_MARKER) {
+            removed.remove(idx);
+        }
+
         return super.set(idx, value);
     }
 
     private void ensureSize(int idx) {
         while (idx >= size()) {
-            add(REMOVED_MARKER);
+            removed.add(size());
+            add(null);
         }
     }
 
     public Object put(MessagePartInfo key, Object value) {
-        ensureSize(key.getIndex());
-        return super.set(key.getIndex(), value);
+        return set(key.getIndex(), value);
     }
 
     public boolean hasValue(MessagePartInfo key) {
         if (key.getIndex() >= size()) {
             return false;
         }
-        return super.get(key.getIndex()) != REMOVED_MARKER;
+        return !removed.contains(key.getIndex());
     }
 
     public Object get(MessagePartInfo key) {
-        Object o = super.get(key.getIndex());
-        return o == REMOVED_MARKER ? null : o;
+        return super.get(key.getIndex());
     }
+
     public void remove(MessagePartInfo key) {
-        put(key, REMOVED_MARKER);
+        put(key, null);
     }
 }
