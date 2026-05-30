@@ -42,6 +42,9 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
+import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
+
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import org.apache.cxf.binding.soap.SoapVersion;
@@ -385,6 +388,14 @@ public class RMEndpoint {
         if (rmSchema == null) {
             try {
                 SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+                factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+                try {
+                    factory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                    factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+                } catch (SAXNotRecognizedException | SAXNotSupportedException e) {
+                    LOG.log(Level.WARNING, "The properties '" + XMLConstants.ACCESS_EXTERNAL_DTD  
+                        + "', '" + XMLConstants.ACCESS_EXTERNAL_SCHEMA + "' are not supported.");
+                }
                 javax.xml.transform.Source ad = new StreamSource(RMEndpoint.class
                                              .getResource("/schemas/wsdl/addressing.xsd")
                                              .openStream(),

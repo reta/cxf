@@ -51,6 +51,8 @@ import org.w3c.dom.NodeList;
 
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.SAXParseException;
 
 import org.apache.cxf.aegis.DatabindingException;
@@ -126,6 +128,14 @@ public class XMLTypeCreator extends AbstractTypeCreator {
         try (InputStream is = XMLTypeCreator.class.getResourceAsStream(path)) {
             if (is != null) {
                 SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+                schemaFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+                try {
+                    schemaFactory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                    schemaFactory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+                } catch (SAXNotRecognizedException | SAXNotSupportedException e) {
+                    LOG.log(Level.WARNING, "The properties '" + XMLConstants.ACCESS_EXTERNAL_DTD  
+                        + "', '" + XMLConstants.ACCESS_EXTERNAL_SCHEMA + "' are not supported.");
+                }
                 Schema aegisSchema = schemaFactory.newSchema(new StreamSource(is));
                 AEGIS_DOCUMENT_BUILDER_FACTORY.setSchema(aegisSchema);
             }
